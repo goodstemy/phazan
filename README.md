@@ -1,4 +1,4 @@
-# Phazan
+# Phazan 🪶
 
 **Phazan tells your where to buy**
 
