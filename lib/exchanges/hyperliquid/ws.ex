@@ -38,11 +38,6 @@ defmodule Exchanges.Hyperliquid.Ws do
 
   def handle_info(_msg, state), do: {:ok, state}
 
-  def parse_book(_msg) do
-    # IO.inspect("parse_book #{msg}")
-    # inspect("Parse_book #{Map.get(msg, "data")}")
-  end
-
   def handle_frame({_type, msg}, state) do
     msg = JSON.decode!(msg)
     IO.inspect(msg)
@@ -54,7 +49,6 @@ defmodule Exchanges.Hyperliquid.Ws do
 
       "l2Book" ->
         Exchanges.Hyperliquid.Parser.parse_book_message(msg)
-        # parse_book(parsed)
         {:ok, state}
 
       "subscriptionResponse" ->
