@@ -1,7 +1,9 @@
 defmodule Phazan do
+  alias Exchanges.Binance
+  alias Exchanges.Hyperliquid
+
   # todo: move to config
-  # @tokens ["BTC", "ETH", "HYPE", "SOL", "ZEC", "PUMP", "XMR", "PURR", "LINK", "ENA", "KNTQ"]
-  @tokens ["BNB"]
+  @tokens ["BTC", "ETH", "HYPE", "SOL", "ZEC", "PUMP", "XMR", "PURR", "LINK", "ENA", "KNTQ"]
   @sma_window 20
   @ema_window 50
   @rsi_window 14
@@ -13,6 +15,8 @@ defmodule Phazan do
     sma = Indicators.calculate_sma(acc, @sma_window)
     ema = Indicators.calculate_ema(acc, @ema_window)
     rsi = Indicators.calculate_rsi(acc, @rsi_window)
+
+    IO.puts("$#{String.upcase(coin)} sma: #{sma}, ema: #{ema}, rsi: #{rsi}")
 
     if sma > price and ema > price and rsi < @rsi_oversold do
       IO.puts(
@@ -31,27 +35,10 @@ defmodule Phazan do
     end
   end
 
-  # def parse_snapshot([h | tail], acc, coin) do
-  #   close_price = Float.parse(Map.get(h, "c")) |> elem(0)
-
-  #   parse_snapshot(tail, [close_price] ++ acc, coin)
-  # end
-
-  # def parse_snapshot([], acc, coin) do
-  #   price = Enum.fetch(acc, 0) |> elem(1)
-
-  #   calculate(acc, price, coin)
-  # end
-
-  # def parse_snapshot(nil, _acc, coin) do
-  #   IO.puts("Not found candles for $#{coin}")
-  # end
-
   def fetch_snapshot(coin) do
-    # BinanceAPI.get_snapshot(coin)
-    case HyperLiquidAPI.get_snapshot(coin) |> Utils.parse_snapshot_response([], "hl") do
+    case Hyperliquid.Rest.get_snapshot(coin) do
       nil ->
-        BinanceAPI.get_snapshot(coin) |> elem(0) |> Utils.parse_snapshot_response([], "binance")
+        Binance.Rest.get_snapshot(coin)
 
       snapshot ->
         snapshot
@@ -59,10 +46,15 @@ defmodule Phazan do
   end
 
   def get_snapshot(coin) do
-    parsed = fetch_snapshot(coin)
-    [price | _] = parsed
+    case fetch_snapshot(coin) do
+      nil ->
+        IO.puts("Not found any data for $#{String.upcase(coin)}")
 
-    calculate(parsed, price, coin)
+      snapshot ->
+        [current_price | _] = snapshot
+
+        calculate(snapshot, current_price, coin)
+    end
   end
 
   def parse_spot_meta([h | tail]) do
@@ -72,7 +64,7 @@ defmodule Phazan do
   end
 
   def parse_spot_meta([]) do
-    IO.puts("No spot meta data, waiting 24 hours...")
+    IO.puts("🎬 THE END. Waiting 24 hours...")
 
     # wait 24 hours
     Process.sleep(@sleep_timeout)
@@ -80,7 +72,20 @@ defmodule Phazan do
     parse_spot_meta(@tokens)
   end
 
+  def start_ws() do
+    children = [
+      {Hyperliquid.Ws, []}
+    ]
+
+    Supervisor.start_link(children, strategy: :one_for_one)
+  end
+
+  def start_rest(), do: parse_spot_meta(@tokens)
+
   def main(_) do
-    parse_spot_meta(@tokens)
+    start_ws()
+    # start_rest()
+
+    Process.sleep(@sleep_timeout)
   end
 end

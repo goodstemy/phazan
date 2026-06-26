@@ -1,14 +1,8 @@
-defmodule BinanceAPI do
+defmodule Exchanges.Binance.Rest do
+  alias Exchanges.Binance.Parser
+
+  # todo: move to config
   @shift_days -100
-
-  def parse_result([h | tail], acc) do
-    [_, _, _, _, close_price, _, _ | _] = h
-
-    parse_result(tail, [close_price] ++ acc)
-  end
-
-  def parse_result([], acc), do: Enum.reverse(acc)
-  def parse_result(%{}, _), do: nil
 
   def get_snapshot(coin) do
     IO.puts("$#{coin} getting Binance snapshot...")
@@ -20,6 +14,6 @@ defmodule BinanceAPI do
         "&startTime=#{DateTime.utc_now() |> DateTime.shift(day: @shift_days) |> DateTime.to_unix(:millisecond)}" <>
         "&endTime=#{DateTime.utc_now() |> DateTime.to_unix(:millisecond)}"
     ).body
-    |> parse_result([])
+    |> Parser.parse_result([])
   end
 end

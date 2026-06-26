@@ -1,50 +1,13 @@
-defmodule HyperLiquidAPI do
+defmodule Exchanges.Hyperliquid.Ws do
   use WebSockex
 
-  # todo: move to config
-  @shift_days -100
   @ping_timeout 60_000
-
-  def parse_result([h | tail], acc) do
-    close_price = Float.parse(Map.get(h, "c")) |> elem(0)
-
-    parse_result(tail, [close_price] ++ acc)
-  end
-
-  def parse_result([], acc), do: acc
-  def parse_result(nil, _), do: nil
-
-  def get_snapshot(coin) do
-    IO.puts("$#{coin} getting HL snapshot...")
-
-    Req.post!(
-      "https://api.hyperliquid.xyz/info",
-      headers: [{"Content-Type", "application/json"}],
-      json: %{
-        "type" => "candleSnapshot",
-        "req" => %{
-          "coin" => coin,
-          "interval" => "1d",
-          "startTime" =>
-            DateTime.utc_now()
-            |> DateTime.shift(day: @shift_days)
-            |> DateTime.to_unix(:millisecond),
-          "endTime" => DateTime.utc_now() |> DateTime.to_unix(:millisecond)
-        }
-      }
-    ).body
-    |> parse_result([])
-  end
-
-  def init(init_arg) do
-    {:ok, init_arg}
-  end
 
   def start_link(state),
     do: WebSockex.start_link("wss://api.hyperliquid.xyz/ws", __MODULE__, state)
 
   def handle_connect(_conn, state) do
-    IO.puts("Connected!")
+    IO.puts("#{__MODULE__} WS connected")
 
     Process.send_after(self(), :send_subscribe, 0)
     Process.send_after(self(), :send_ping, @ping_timeout)
@@ -56,7 +19,9 @@ defmodule HyperLiquidAPI do
       method: "subscribe",
       subscription: %{
         type: "l2Book",
-        coin: "BTC"
+        coin: "BTC",
+        nSigFigs: 2,
+        fast: false
       }
     }
 
@@ -64,7 +29,6 @@ defmodule HyperLiquidAPI do
   end
 
   def handle_info(:send_ping, state) do
-    IO.puts("Sending ping (heartbeat)")
     ping = JSON.encode!(%{method: "ping"})
 
     Process.send_after(self(), :send_ping, @ping_timeout)
@@ -74,21 +38,23 @@ defmodule HyperLiquidAPI do
 
   def handle_info(_msg, state), do: {:ok, state}
 
-  def parse_book(msg) do
-    IO.inspect("parse_book #{msg}")
+  def parse_book(_msg) do
+    # IO.inspect("parse_book #{msg}")
     # inspect("Parse_book #{Map.get(msg, "data")}")
   end
 
   def handle_frame({_type, msg}, state) do
-    parsed = JSON.decode!(msg)
+    msg = JSON.decode!(msg)
+    IO.inspect(msg)
 
     # don't want to use pattern matching here...
-    case Map.get(parsed, "channel") do
+    case Map.get(msg, "channel") do
       "pong" ->
         {:ok, state}
 
       "l2Book" ->
-        parse_book(parsed)
+        Exchanges.Hyperliquid.Parser.parse_book_message(msg)
+        # parse_book(parsed)
         {:ok, state}
 
       "subscriptionResponse" ->

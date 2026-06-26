@@ -1,44 +1,5 @@
-defmodule HyperLiquidAPI do
-  use WebSockex
-
-  # todo: move to config
-  @shift_days -100
+defmodule WsClient do
   @ping_timeout 60_000
-
-  def parse_result([h | tail], acc) do
-    close_price = Float.parse(Map.get(h, "c")) |> elem(0)
-
-    parse_result(tail, [close_price] ++ acc)
-  end
-
-  def parse_result([], acc), do: acc
-  def parse_result(nil, _), do: nil
-
-  def get_snapshot(coin) do
-    IO.puts("$#{coin} getting HL snapshot...")
-
-    Req.post!(
-      "https://api.hyperliquid.xyz/info",
-      headers: [{"Content-Type", "application/json"}],
-      json: %{
-        "type" => "candleSnapshot",
-        "req" => %{
-          "coin" => coin,
-          "interval" => "1d",
-          "startTime" =>
-            DateTime.utc_now()
-            |> DateTime.shift(day: @shift_days)
-            |> DateTime.to_unix(:millisecond),
-          "endTime" => DateTime.utc_now() |> DateTime.to_unix(:millisecond)
-        }
-      }
-    ).body
-    |> parse_result([])
-  end
-
-  def init(init_arg) do
-    {:ok, init_arg}
-  end
 
   def start_link(state),
     do: WebSockex.start_link("wss://api.hyperliquid.xyz/ws", __MODULE__, state)
