@@ -36,7 +36,7 @@ defmodule Indicators do
 
       {final_up, final_down} =
         Enum.reduce(rest, {initial_up, initial_down}, fn change, {up, down} ->
-          up   = rma_next(up, max(change, 0), window)
+          up = rma_next(up, max(change, 0), window)
           down = rma_next(down, abs(min(change, 0)), window)
           {up, down}
         end)
@@ -46,6 +46,7 @@ defmodule Indicators do
   end
 
   defp changes([_]), do: []
+
   defp changes([prev, curr | tail]) do
     [curr - prev | changes([curr | tail])]
   end
@@ -68,11 +69,15 @@ defmodule Indicators do
 
   defp rsi_from_up_down(up, down) do
     cond do
-      down == 0.0 -> 100.0
-      up == 0.0   -> 0.0
+      down == 0.0 ->
+        100.0
+
+      up == 0.0 ->
+        0.0
+
       true ->
         rs = up / down
-        100.0 - (100.0 / (1.0 + rs))
+        100.0 - 100.0 / (1.0 + rs)
     end
   end
 end
