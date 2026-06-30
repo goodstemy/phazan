@@ -14,8 +14,11 @@ Simple project for elixir learning. Using Hyperliquid API to get snapshots of la
 # install deps
 mix deps.get
 
-# run
-mix escript.build && ./phazan
+# dev
+mix run --no-halt
+
+# prod
+mix release && _build/dev/rel/phazan/bin/phazan start
 ```
 
 #### Example output
